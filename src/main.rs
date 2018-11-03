@@ -53,6 +53,7 @@ mod crypt {
     const MOD: UInt = 1048576;
     const BASE: u8 = 27;
 
+    // All taken from num_bigint crate, modified to only the relevant code-paths
     mod big {
         pub enum ParseBigIntError {
             Empty,
@@ -65,7 +66,6 @@ mod crypt {
         }
 
         mod big_digit {
-            // `DoubleBigDigit` size dependent
             pub const BITS: usize = 32;
             pub type BigDigit = u32;
             pub type DoubleBigDigit = u64;
@@ -123,33 +123,6 @@ mod crypt {
             );
             debug_assert!(!radix.is_power_of_two());
 
-            // To generate this table:
-            //    for radix in 2u64..257 {
-            //        let mut power = big_digit::BITS / fls(radix as u64);
-            //        let mut base = radix.pow(power as u32);
-            //
-            //        while let Some(b) = base.checked_mul(radix) {
-            //            if b > big_digit::MAX {
-            //                break;
-            //            }
-            //            base = b;
-            //            power += 1;
-            //        }
-            //
-            //        println!("({:10}, {:2}), // {:2}", base, power, radix);
-            //    }
-            // and
-            //    for radix in 2u64..257 {
-            //        let mut power = 64 / fls(radix as u64);
-            //        let mut base = radix.pow(power as u32);
-            //
-            //        while let Some(b) = base.checked_mul(radix) {
-            //            base = b;
-            //            power += 1;
-            //        }
-            //
-            //        println!("({:20}, {:2}), // {:2}", base, power, radix);
-            //    }
             match big_digit::BITS {
                 32 => {
                     const BASES: [(u32, usize); 257] = [
@@ -715,11 +688,6 @@ mod crypt {
             carry as BigDigit
         }
 
-        /// /Two argument addition of raw slices:
-        /// a += b
-        ///
-        /// The caller _must_ ensure that a is big enough to store the result - typically this means
-        /// resizing a to max(a.len(), b.len()) + 1, to fit a possible carry.
         pub fn add2(a: &mut [BigDigit], b: &[BigDigit]) {
             let carry = __add2(a, b);
 
@@ -793,8 +761,6 @@ mod crypt {
                 BigUint { data: digits }.normalized()
             }
 
-            /// Strips off trailing zero bigdigits - comparisons require the last element in the vector to
-            /// be nonzero.
             #[inline]
             fn normalize(&mut self) {
                 while let Some(&0) = self.data.last() {
@@ -802,7 +768,6 @@ mod crypt {
                 }
             }
 
-            /// Returns a normalized `BigUint`.
             #[inline]
             fn normalized(mut self) -> BigUint {
                 self.normalize();
@@ -858,11 +823,10 @@ mod crypt {
             ((lhs / rhs) as BigDigit, (lhs % rhs) as BigDigit)
         }
 
-        #[inline(always)] // forced inline to get const-prop for radix=10
+        #[inline(always)]
         fn to_radix_digits_le(u: &BigUint, radix: u32) -> Vec<u8> {
             debug_assert!(!u.is_zero() && !radix.is_power_of_two());
 
-            // Estimate how big the result will be, so we can pre-allocate it.
             let radix_digits = ((u.bits() as f64) / (radix as f64).log2()).ceil();
             let mut res = Vec::with_capacity(radix_digits as usize);
             let mut digits = u.clone();
@@ -924,7 +888,6 @@ mod crypt {
             pad
         };
 
-        // KSJKJZOCWUUAWDBXG
         pad[..cypher_len as usize].to_owned()
     }
 
