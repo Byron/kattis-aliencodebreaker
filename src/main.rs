@@ -861,7 +861,7 @@ mod crypt {
     }
     const CHECKPOINTS: [(u64, u32); 20] = [
         (0, 1),
-        (500_000_000, 374017),
+        (500000000, 374017),
         (1000000000, 748033),
         (1500000000, 73473),
         (2000000000, 447489),
@@ -894,9 +894,9 @@ mod crypt {
     ) -> UInt {
         for _ in from_row..to_row {
             for x in 0..table_size {
-                v = f(v);
                 let xv = unsafe { cols.get_unchecked_mut(x) };
                 *xv = (*xv + v) % MOD;
+                v = f(v);
             }
         }
         v
@@ -907,7 +907,7 @@ mod crypt {
             if (table_size as f64 * table_size as f64) / (CHECKPOINT_INTERVAL as f64) < 1.5 {
                 let table_size = table_size as usize;
                 let mut cols: Vec<UInt> = vec![0; table_size];
-                compute_columns(0, 0, table_size, table_size, &mut cols);
+                compute_columns(1, 0, table_size, table_size, &mut cols);
                 cols
             } else {
                 let table_size = table_size as u64;
@@ -930,19 +930,21 @@ mod crypt {
                                 to_row
                             }
                         };
-                        let column_index = iteration % table_size;
-                        let column_index = if column_index == 0 {
+                        let mut to_row_for_thread = to_row;
+                        let column_offset = iteration % table_size;
+                        let column_index = if column_offset == 0 {
+                            to_row_for_thread += 1;
                             None
                         } else {
-                            Some(column_index as usize)
+                            Some(column_offset as usize)
                         };
                         let res_sender = res_sender.clone();
                         ::std::thread::spawn(move || {
                             let mut cols: Vec<UInt> = vec![0; table_size as usize];
                             let v = match column_index {
-                                Some(column_index) => {
+                                Some(column_offset) => {
                                     let mut v = checkpoint;
-                                    for _ in column_index..table_size as usize {
+                                    for _ in column_offset..table_size as usize {
                                         v = f(v);
                                     }
                                     from_row += 1;
@@ -952,12 +954,12 @@ mod crypt {
                             };
                             eprintln!(
                                 "got {} - {} {:?} (cp = {}, v = {})",
-                                from_row, to_row, column_index, checkpoint, v
+                                from_row, to_row_for_thread, column_index, checkpoint, v
                             );
                             compute_columns(
                                 v,
                                 from_row as usize,
-                                to_row as usize,
+                                to_row_for_thread as usize,
                                 table_size as usize,
                                 &mut cols,
                             );

@@ -19,9 +19,15 @@ SUCCESSFULLY=0
         expect_run ${SUCCESSFULLY} "$exe" < "$fixture/valid.input"
       }
     )
+    (with "medium padding"
+      it "produces the expected output (we know it's correct, despite nonesense)" && {
+        WITH_SNAPSHOT="$snapshot/success-input-file-produces-correct-output-large" \
+        expect_run ${SUCCESSFULLY} "$exe" < "$fixture/valid-medium.input"
+      }
+    )
     (with "huge padding"
       it "produces the expected output" && {
-        WITH_SNAPSHOT="$snapshot/success-input-file-produces-correct-output-large" \
+        WITH_SNAPSHOT="$snapshot/success-input-file-produces-correct-output-huge" \
         expect_run ${SUCCESSFULLY} "$exe" < "$fixture/valid-big.input"
       }
     )
