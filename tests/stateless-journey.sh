@@ -13,9 +13,17 @@ SUCCESSFULLY=0
 
 (with "input from stdin"
   (when "the input is well formed"
-    it "produces the expected output" && {
-      WITH_SNAPSHOT="$snapshot/success-input-file-produces-correct-output" \
-      expect_run ${SUCCESSFULLY} "$exe" < "$fixture/valid.input"
-    }
+    (with "small padding"
+      it "produces the expected output" && {
+        WITH_SNAPSHOT="$snapshot/success-input-file-produces-correct-output" \
+        expect_run ${SUCCESSFULLY} "$exe" < "$fixture/valid.input"
+      }
+    )
+    (with "huge padding"
+      it "produces the expected output" && {
+        WITH_SNAPSHOT="$snapshot/success-input-file-produces-correct-output-large" \
+        expect_run ${SUCCESSFULLY} "$exe" < "$fixture/valid-big.input"
+      }
+    )
   )
 )
