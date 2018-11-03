@@ -853,12 +853,12 @@ mod crypt {
         }
     }
 
+    #[inline(always)]
     fn f(x: UInt) -> UInt {
         (x * 33 + 1) % MOD
     }
 
     pub fn make_pad(table_size: u32, cypher_len: u32) -> Vec<u8> {
-        eprintln!("making cols");
         let cols = {
             let mut cols: Vec<UInt> = vec![0; table_size as usize];
             let mut v: UInt = 0;
@@ -872,17 +872,13 @@ mod crypt {
             cols
         };
 
-        eprintln!("making base27 pad");
         let pad = {
             use std::fmt::Write;
             let mut bignum_str = String::new();
-            eprintln!("to base10");
             for n in &cols {
                 write!(bignum_str, "{}", n).unwrap();
             }
-            eprintln!("to biguint");
             let bi = big::BigUint::parse_bytes(bignum_str.as_bytes(), 10).unwrap();
-            eprintln!("to base 27");
             let mut pad = bi.to_radix_le(27);
             pad.reverse();
             pad

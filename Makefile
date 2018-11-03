@@ -27,7 +27,7 @@ lint:
 	cargo clippy
 
 profile: target/release/codebreaker
-	valgrind --callgrind-out-file=callgrind.profile --tool=callgrind  $< >/dev/null
+	valgrind --callgrind-out-file=callgrind.profile --tool=callgrind  $< < tests/fixtures/valid-medium.input >/dev/null
 	callgrind_annotate --auto=yes callgrind.profile
 
 benchmark: target/release/codebreaker
