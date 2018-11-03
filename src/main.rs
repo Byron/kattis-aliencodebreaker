@@ -892,20 +892,13 @@ mod crypt {
         table_size: usize,
         cols: &mut [UInt],
     ) -> UInt {
-        let mut iteration = from_row * table_size;
-        eprintln!("in {} = {}", iteration, v);
-        for y in from_row..to_row {
+        for _ in from_row..to_row {
             for x in 0..table_size {
                 let xv = unsafe { cols.get_unchecked_mut(x) };
                 *xv = (*xv + v) % MOD;
-                iteration = y * table_size + x;
-                if iteration % CHECKPOINT_INTERVAL as usize == 0 {
-                    eprintln!("{} = {}", iteration, v)
-                }
                 v = f(v);
             }
         }
-        eprintln!("last {} = {}", iteration, v);
         v
     }
 
@@ -925,7 +918,8 @@ mod crypt {
                 let res_receiver = {
                     let (res_sender, res_receiver) = mpsc::channel();
 
-                    for (iteration, checkpoint) in CHECKPOINTS.iter().cloned() {
+                    for (index, (iteration, checkpoint)) in CHECKPOINTS.iter().cloned().enumerate()
+                    {
                         if iteration > max_iteration {
                             break;
                         }
@@ -940,11 +934,15 @@ mod crypt {
                         let mut to_row_for_thread = to_row;
                         let column_offset = iteration % table_size;
                         let column_index = if column_offset == 0 {
-                            to_row_for_thread += 1;
                             None
                         } else {
                             Some(column_offset as usize)
                         };
+                        if let Some((next_iteration, _)) = CHECKPOINTS.get(index + 1) {
+                           if *next_iteration <= max_iteration && next_iteration % table_size != 0 {
+                               to_row_for_thread += 1;
+                           }
+                        }
                         let res_sender = res_sender.clone();
                         ::std::thread::spawn(move || {
                             let mut cols: Vec<UInt> = vec![0; table_size as usize];
@@ -959,10 +957,6 @@ mod crypt {
                                 }
                                 None => checkpoint,
                             };
-                            eprintln!(
-                                "got {} - {} {:?} (cp = {}, v = {})",
-                                from_row, to_row_for_thread, column_index, checkpoint, v
-                            );
                             compute_columns(
                                 v,
                                 from_row as usize,
@@ -981,10 +975,9 @@ mod crypt {
                 let mut cols: Vec<_> = res_receiver.into_iter().collect();
                 assert!(cols.len() > 1, "expecting more than one chunks of work");
                 let acc = cols.pop().unwrap();
-                eprintln!("acc[0] = {} + {}", acc[1], cols[0][1]);
                 cols.into_iter().fold(acc, |mut acc, cols| {
                     for (acc, c) in acc.iter_mut().zip(cols.into_iter()) {
-                        *acc += c;
+                        *acc = (*acc + c) % MOD;
                     }
                     acc
                 })
