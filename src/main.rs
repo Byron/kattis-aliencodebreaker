@@ -859,19 +859,110 @@ mod crypt {
     fn f(x: UInt) -> UInt {
         (x * 33 + 1) % MOD
     }
+    const CHECKPOINTS: [(u64, u32); 20] = [
+        (0, 1),
+        (500_000_000, 374017),
+        (1000000000, 748033),
+        (1500000000, 73473),
+        (2000000000, 447489),
+        (2500000000, 821505),
+        (3000000000, 146945),
+        (3500000000, 520961),
+        (4000000000, 894977),
+        (4500000000, 220417),
+        (5000000000, 594433),
+        (5500000000, 968449),
+        (6000000000, 293889),
+        (6500000000, 667905),
+        (7000000000, 1041921),
+        (7500000000, 367361),
+        (8000000000, 741377),
+        (8500000000, 66817),
+        (9000000000, 440833),
+        (9500000000, 814849),
+    ];
+    const CHECKPOINT_INTERVAL: u64 = CHECKPOINTS[1].0;
+
+    use std::sync::mpsc;
+
+    fn compute_columns(
+        mut v: UInt,
+        from_row: usize,
+        to_row: usize,
+        table_size: usize,
+        cols: &mut [UInt],
+    ) -> UInt {
+        for _ in from_row..to_row {
+            for x in 0..table_size {
+                v = f(v);
+                let xv = unsafe { cols.get_unchecked_mut(x) };
+                *xv = (*xv + v) % MOD;
+            }
+        }
+        v
+    }
 
     pub fn make_pad(table_size: u32, cypher_len: u32) -> Vec<u8> {
         let cols = {
-            let mut cols: Vec<UInt> = vec![0; table_size as usize];
-            let mut v: UInt = 0;
-            for _ in 0..table_size as usize {
-                for x in 0..table_size as usize {
-                    v = f(v);
-                    let xv = unsafe { cols.get_unchecked_mut(x) };
-                    *xv = (*xv + v) % MOD;
-                }
+            if (table_size as f64 * table_size as f64) / (CHECKPOINT_INTERVAL as f64) < 1.5 {
+                let table_size = table_size as usize;
+                let mut cols: Vec<UInt> = vec![0; table_size];
+                compute_columns(0, 0, table_size, table_size, &mut cols);
+                cols
+            } else {
+                let table_size = table_size as u64;
+                let mut from_row = 0_u64;
+                let rows_per_interval = CHECKPOINT_INTERVAL / table_size;
+
+                let res_receiver = {
+                    let (res_sender, res_receiver) = mpsc::channel();
+
+                    for (iteration, checkpoint) in CHECKPOINTS.iter().cloned() {
+                        let to_row = from_row + rows_per_interval;
+                        let column_index = iteration % table_size;
+                        let column_index = if column_index == 0 {
+                            None
+                        } else {
+                            Some(column_index as usize)
+                        };
+                        let res_sender = res_sender.clone();
+                        ::std::thread::spawn(move || {
+                            let mut cols: Vec<UInt> = vec![0; table_size as usize];
+                            let v = match column_index {
+                                Some(column_index) => {
+                                    let mut v = checkpoint;
+                                    for _ in column_index..table_size as usize {
+                                        v = f(v);
+                                    }
+                                    from_row += 1;
+                                    v
+                                }
+                                None => checkpoint,
+                            };
+                            eprintln!(
+                                "got {} - {} {:?} (cp = {}, v = {})",
+                                from_row, to_row, column_index, checkpoint, v
+                            );
+                            compute_columns(
+                                v,
+                                from_row as usize,
+                                to_row as usize,
+                                table_size as usize,
+                                &mut cols,
+                            );
+                            res_sender.send((checkpoint, cols)).unwrap();
+                        });
+                        from_row = to_row;
+                    }
+
+                    res_receiver
+                };
+
+                let mut cols: Vec<_> = res_receiver.into_iter().collect();
+                cols.sort_by_key(|&(column_index, _)| column_index);
+                eprintln!("{:?}", cols.iter().map(|(c, _)| c).collect::<Vec<_>>());
+                unimplemented!("threaded version");
             }
-            cols
         };
 
         let pad = {

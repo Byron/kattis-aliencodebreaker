@@ -8,6 +8,10 @@ publish = false
 name="codebreaker"
 path="src/main.rs"
 
+[[bin]]
+name="gencheckpoints"
+path="src/checkpoints.rs"
+
 [profile.release]
 incremental = false
 overflow-checks = false
