@@ -911,14 +911,25 @@ mod crypt {
                 cols
             } else {
                 let table_size = table_size as u64;
+                let max_iteration = table_size * table_size;
                 let mut from_row = 0_u64;
-                let rows_per_interval = CHECKPOINT_INTERVAL / table_size;
+                let max_rows_per_interval = CHECKPOINT_INTERVAL / table_size;
 
                 let res_receiver = {
                     let (res_sender, res_receiver) = mpsc::channel();
 
                     for (iteration, checkpoint) in CHECKPOINTS.iter().cloned() {
-                        let to_row = from_row + rows_per_interval;
+                        if iteration > max_iteration {
+                            break;
+                        }
+                        let to_row = {
+                            let to_row = from_row + max_rows_per_interval;
+                            if to_row * table_size > max_iteration {
+                                table_size
+                            } else {
+                                to_row
+                            }
+                        };
                         let column_index = iteration % table_size;
                         let column_index = if column_index == 0 {
                             None
@@ -950,7 +961,7 @@ mod crypt {
                                 table_size as usize,
                                 &mut cols,
                             );
-                            res_sender.send((checkpoint, cols)).unwrap();
+                            res_sender.send((iteration, cols)).unwrap();
                         });
                         from_row = to_row;
                     }
@@ -959,9 +970,17 @@ mod crypt {
                 };
 
                 let mut cols: Vec<_> = res_receiver.into_iter().collect();
+                assert!(cols.len() > 1, "expecting more than one chunks of work");
                 cols.sort_by_key(|&(column_index, _)| column_index);
-                eprintln!("{:?}", cols.iter().map(|(c, _)| c).collect::<Vec<_>>());
-                unimplemented!("threaded version");
+                let acc = cols.pop().unwrap().1;
+                cols.into_iter()
+                    .map(|(_, cols)| cols)
+                    .fold(acc, |mut acc, cols| {
+                        for (acc, c) in acc.iter_mut().zip(cols.into_iter()) {
+                            *acc += c;
+                        }
+                        acc
+                    })
             }
         };
 
