@@ -861,7 +861,7 @@ mod crypt {
     }
     const CHECKPOINTS: [(u64, u32); 20] = [
         (0, 1),
-        (500000000, 374017),
+        (500_000_000, 374017),
         (1000000000, 748033),
         (1500000000, 73473),
         (2000000000, 447489),
@@ -892,13 +892,20 @@ mod crypt {
         table_size: usize,
         cols: &mut [UInt],
     ) -> UInt {
-        for _ in from_row..to_row {
+        let mut iteration = from_row * table_size;
+        eprintln!("in {} = {}", iteration, v);
+        for y in from_row..to_row {
             for x in 0..table_size {
                 let xv = unsafe { cols.get_unchecked_mut(x) };
                 *xv = (*xv + v) % MOD;
+                iteration = y * table_size + x;
+                if iteration % CHECKPOINT_INTERVAL as usize == 0 {
+                    eprintln!("{} = {}", iteration, v)
+                }
                 v = f(v);
             }
         }
+        eprintln!("last {} = {}", iteration, v);
         v
     }
 
@@ -963,7 +970,7 @@ mod crypt {
                                 table_size as usize,
                                 &mut cols,
                             );
-                            res_sender.send((iteration, cols)).unwrap();
+                            res_sender.send(cols).unwrap();
                         });
                         from_row = to_row;
                     }
@@ -973,16 +980,14 @@ mod crypt {
 
                 let mut cols: Vec<_> = res_receiver.into_iter().collect();
                 assert!(cols.len() > 1, "expecting more than one chunks of work");
-                cols.sort_by_key(|&(column_index, _)| column_index);
-                let acc = cols.pop().unwrap().1;
-                cols.into_iter()
-                    .map(|(_, cols)| cols)
-                    .fold(acc, |mut acc, cols| {
-                        for (acc, c) in acc.iter_mut().zip(cols.into_iter()) {
-                            *acc += c;
-                        }
-                        acc
-                    })
+                let acc = cols.pop().unwrap();
+                eprintln!("acc[0] = {} + {}", acc[1], cols[0][1]);
+                cols.into_iter().fold(acc, |mut acc, cols| {
+                    for (acc, c) in acc.iter_mut().zip(cols.into_iter()) {
+                        *acc += c;
+                    }
+                    acc
+                })
             }
         };
 
