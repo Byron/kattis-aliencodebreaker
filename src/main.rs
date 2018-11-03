@@ -50,17 +50,31 @@ fn f(x: UInt) -> UInt {
 }
 
 fn make_pad(table_size: u32, cypher_len: u32) -> Vec<u8> {
-    let mut cols: Vec<UInt> = vec![0; table_size as usize];
-    let mut v: UInt = 0;
-    for _ in 0..table_size as usize {
-        for x in 0..table_size as usize {
-            v = f(v);
-            cols[x] = (cols[x] + v) % MOD;
+    let cols = {
+        let mut cols: Vec<UInt> = vec![0; table_size as usize];
+        let mut v: UInt = 0;
+        for _ in 0..table_size as usize {
+            for x in 0..table_size as usize {
+                v = f(v);
+                let xv = unsafe { cols.get_unchecked_mut(x) };
+                *xv = (*xv + v) % MOD;
+            }
         }
-    }
+        cols
+    };
+
+    let npad = {
+        let mut pad = Vec::<u8>::new();
+        for v in cols.iter().rev() {
+
+        }
+        pad
+    };
 
     // KSJKJZOCWUUAWDBXG
     let pad = vec![10, 18, 9, 10, 9, 25, 14, 2, 22, 20, 20, 0, 22, 3, 1, 23, 6];
+    eprintln!("{:?}", pad);
+    eprintln!("{:?}", npad);
     pad[..cypher_len as usize].to_owned()
 }
 
@@ -89,11 +103,9 @@ fn decode(encoded: &str, pad: &[u8], out: &mut Write) {
 
     for (c, p) in encoded.chars().map(ascii_to_code).zip(pad) {
         let base27 = (c + p) % BASE;
-        out.write(&[base27_to_ascii(base27)])
-            .unwrap();
+        out.write(&[base27_to_ascii(base27)]).unwrap();
     }
-    out.write(&['\n' as u8])
-        .unwrap();
+    out.write(&['\n' as u8]).unwrap();
 }
 
 fn main() -> Result<(), Error> {
