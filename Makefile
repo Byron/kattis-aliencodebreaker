@@ -33,7 +33,7 @@ profile: target/release/codebreaker
 benchmark: target/release/codebreaker
 	hyperfine '$<' < tests/fixtures/aaacodebreaker.input
 
-journey-tests: target/debug/codebreaker
+journey-tests: target/release/codebreaker
 	./tests/stateless-journey.sh $<
 
 continuous-journey-tests:

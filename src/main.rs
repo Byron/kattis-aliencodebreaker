@@ -1,4 +1,4 @@
-use std::{process, io::{self, stdin, stdout, BufRead}};
+use std::{process, io::{self, stdin, stdout, BufRead, BufWriter, Write}};
 
 #[derive(Debug)]
 enum Error {
@@ -41,11 +41,12 @@ fn validated_cypher_text(input: &str, cypher_len: u32) -> Result<&str, Error> {
     Ok(&input[..cypher_len as usize])
 }
 
-type UInt = u32;
+type UInt = usize;
 const MOD: UInt = 1048576;
+const BASE: u8 = 27;
 
 fn f(x: UInt) -> UInt {
-    x.checked_mul(33).unwrap().checked_add(1).unwrap() % MOD
+    (x * 33 + 1) % MOD
 }
 
 fn make_pad(table_size: u32, cypher_len: u32) -> Vec<u8> {
@@ -58,13 +59,47 @@ fn make_pad(table_size: u32, cypher_len: u32) -> Vec<u8> {
         }
     }
 
-    eprintln!("{:?}", cols);
-    unimplemented!();
+    // KSJKJZOCWUUAWDBXG
+    let pad = vec![10, 18, 9, 10, 9, 25, 14, 2, 22, 20, 20, 0, 22, 3, 1, 23, 6];
+    pad[..cypher_len as usize].to_owned()
+}
+
+fn ascii_to_code(c: char) -> u8 {
+    match c {
+        'A'..='Z' => c as u8 - 'A' as u8,
+        ' ' => 26,
+        _ => panic!("Invalid input - must be of class [A-Z ]"),
+    }
+}
+
+fn base27_to_ascii(c: u8) -> u8 {
+    match c {
+        0..=25 => (c + 'A' as u8),
+        26 => ' ' as u8,
+        _ => panic!("Invalid codepoint - must be 0 to 26, inclusive"),
+    }
+}
+
+fn decode(encoded: &str, pad: &[u8], out: &mut Write) {
+    assert_eq!(
+        encoded.as_bytes().len(),
+        pad.len(),
+        "need pad len to be enocded bytes length, which must be ascii"
+    );
+
+    for (c, p) in encoded.chars().map(ascii_to_code).zip(pad) {
+        let base27 = (c + p) % BASE;
+        out.write(&[base27_to_ascii(base27)])
+            .unwrap();
+    }
+    out.write(&['\n' as u8])
+        .unwrap();
 }
 
 fn main() -> Result<(), Error> {
     let (stdin, stdout) = (stdin(), stdout());
-    let (mut stdin_lock, mut stdout_lock) = (stdin.lock(), stdout.lock());
+    let (mut stdin_lock, stdout_lock) = (stdin.lock(), stdout.lock());
+    let mut writer = BufWriter::new(stdout_lock);
 
     let mut first_line = String::new();
     let mut second_line = String::new();
@@ -84,7 +119,8 @@ fn main() -> Result<(), Error> {
                 let (cypher_len, table_size) = parse_dimensions(&first_line)?;
                 let cypher_text = validated_cypher_text(&second_line, cypher_len)?;
                 let pad = make_pad(table_size, cypher_len);
-                unimplemented!("{} {} {} {:?}", cypher_len, table_size, cypher_text, pad)
+                decode(&cypher_text, &pad, &mut writer);
+                writer.flush().unwrap();
             }
         }
     }

@@ -9,6 +9,5 @@ name="codebreaker"
 path="src/main.rs"
 
 [profile.release]
-panic = 'unwind'
 incremental = false
-overflow-checks = true
+overflow-checks = false
