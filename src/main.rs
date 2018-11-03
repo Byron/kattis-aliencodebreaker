@@ -1,3 +1,4 @@
+extern crate num_bigint;
 use std::{process, io::{stdin, stdout, BufRead, BufWriter, Write}};
 
 mod parse {
@@ -46,9 +47,10 @@ mod parse {
 }
 
 mod crypt {
-    use std::io::Write;
+    use std::io;
+    use num_bigint::BigUint;
 
-    type UInt = usize;
+    type UInt = u32;
 
     const MOD: UInt = 1048576;
     const BASE: u8 = 27;
@@ -71,16 +73,19 @@ mod crypt {
             cols
         };
 
-        let npad = {
-            let mut pad = Vec::<u8>::new();
-            for v in cols.iter().rev() {}
+        let pad = {
+            use std::fmt::Write;
+            let mut bignum_str = String::new();
+            for n in &cols {
+                write!(bignum_str, "{}", n).unwrap();
+            }
+            let bi = BigUint::parse_bytes(bignum_str.as_bytes(), 10).unwrap();
+            let mut pad = bi.to_radix_le(27);
+            pad.reverse();
             pad
         };
 
         // KSJKJZOCWUUAWDBXG
-        let pad = vec![10, 18, 9, 10, 9, 25, 14, 2, 22, 20, 20, 0, 22, 3, 1, 23, 6];
-        eprintln!("{:?}", pad);
-        eprintln!("{:?}", npad);
         pad[..cypher_len as usize].to_owned()
     }
 
@@ -100,7 +105,7 @@ mod crypt {
         }
     }
 
-    pub fn decode(encoded: &str, pad: &[u8], out: &mut Write) {
+    pub fn decode(encoded: &str, pad: &[u8], out: &mut io::Write) {
         assert_eq!(
             encoded.as_bytes().len(),
             pad.len(),

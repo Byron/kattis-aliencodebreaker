@@ -31,7 +31,7 @@ profile: target/release/codebreaker
 	callgrind_annotate --auto=yes callgrind.profile
 
 benchmark: target/release/codebreaker
-	hyperfine '$<' < tests/fixtures/aaacodebreaker.input
+	hyperfine '$<' < tests/fixtures/valid.input
 
 journey-tests: target/release/codebreaker
 	./tests/stateless-journey.sh $<
