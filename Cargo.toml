@@ -1,0 +1,14 @@
+[package]
+name = "codebreaker"
+version = "1.0.0"
+authors = ["Sebastian Thiel <byronimo@gmail.com>"]
+publish = false
+
+[[bin]]
+name="codebreaker"
+path="src/main.rs"
+
+[profile.release]
+panic = 'unwind'
+incremental = false
+overflow-checks = true
