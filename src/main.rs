@@ -797,6 +797,8 @@ mod crypt {
         pub fn to_radix_le(u: &BigUint, radix: u32) -> Vec<u8> {
             if u.is_zero() {
                 vec![0]
+            } else if radix == 27 {
+                to_radix_digits_le(u, 27)
             } else {
                 to_radix_digits_le(u, radix)
             }
