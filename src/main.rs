@@ -4,7 +4,7 @@ use std::{process, io::{self, stdin, stdout, BufRead}};
 enum Error {
     InvalidDimensions(&'static str, String),
     InvalidCyphertext(&'static str, String),
-    IO(io::Error)
+    IO(io::Error),
 }
 
 impl From<io::Error> for Error {
@@ -13,24 +13,53 @@ impl From<io::Error> for Error {
     }
 }
 
-fn parse_dimensions(input: &str) -> Result<(u64, u64), Error> {
+fn parse_dimensions(input: &str) -> Result<(u32, u32), Error> {
     let mut ws = input.split_whitespace();
     match (ws.next(), ws.next()) {
-        (Some(cls), Some(tss)) => {
-            Ok((
-                cls.parse().map_err(|_| Error::InvalidDimensions("could not parse cypher length", input.to_owned()))?,
-                tss.parse().map_err(|_| Error::InvalidDimensions("coudl not parse table size", input.to_owned()))?,
-            ))
-        },
-        _ => Err(Error::InvalidDimensions("need two whitespace separated tokens", input.to_owned())),
+        (Some(cls), Some(tss)) => Ok((
+            cls.parse().map_err(|_| {
+                Error::InvalidDimensions("could not parse cypher length", input.to_owned())
+            })?,
+            tss.parse().map_err(|_| {
+                Error::InvalidDimensions("coudl not parse table size", input.to_owned())
+            })?,
+        )),
+        _ => Err(Error::InvalidDimensions(
+            "need two whitespace separated tokens",
+            input.to_owned(),
+        )),
     }
 }
 
-fn validated_cypher_text(input: &str, cypher_len: u64) -> Result<&str, Error> {
+fn validated_cypher_text(input: &str, cypher_len: u32) -> Result<&str, Error> {
     if input.len() < cypher_len as usize {
-        return Err(Error::InvalidCyphertext("cypher text is shorter than advertised", input.to_owned()))
+        return Err(Error::InvalidCyphertext(
+            "cypher text is shorter than advertised",
+            input.to_owned(),
+        ));
     }
     Ok(&input[..cypher_len as usize])
+}
+
+type UInt = u32;
+const MOD: UInt = 1048576;
+
+fn f(x: UInt) -> UInt {
+    x.checked_mul(33).unwrap().checked_add(1).unwrap() % MOD
+}
+
+fn make_pad(table_size: u32, cypher_len: u32) -> Vec<u8> {
+    let mut cols: Vec<UInt> = vec![0; table_size as usize];
+    let mut v: UInt = 0;
+    for _ in 0..table_size as usize {
+        for x in 0..table_size as usize {
+            v = f(v);
+            cols[x] = (cols[x] + v) % MOD;
+        }
+    }
+
+    eprintln!("{:?}", cols);
+    unimplemented!();
 }
 
 fn main() -> Result<(), Error> {
@@ -52,9 +81,10 @@ fn main() -> Result<(), Error> {
                 process::exit(2)
             }
             _ => {
-                let (cyper_len, table_size) = parse_dimensions(&first_line)?;
-                let cypher_text = validated_cypher_text(&second_line, cyper_len)?;
-                unimplemented!("{} {} {}", cyper_len, table_size, cypher_text)
+                let (cypher_len, table_size) = parse_dimensions(&first_line)?;
+                let cypher_text = validated_cypher_text(&second_line, cypher_len)?;
+                let pad = make_pad(table_size, cypher_len);
+                unimplemented!("{} {} {} {:?}", cypher_len, table_size, cypher_text, pad)
             }
         }
     }
