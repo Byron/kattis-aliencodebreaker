@@ -1124,14 +1124,18 @@ fn main() -> Result<(), parse::Error> {
             _ => {
                 let (cypher_len, table_size) = parse::dimensions(&first_line)?;
                 let cypher_text = parse::validated_cypher_text(&second_line, cypher_len)?;
-                match pad_lut.iter().find_map(|(cached_cl, cached_ts, pad)| {
-                    if *cached_cl >= cypher_len && *cached_ts == table_size {
-                        Some(pad)
-                    } else {
-                        None
-                    }
-                }) {
-                    Some(pad) => {
+                match pad_lut
+                    .iter()
+                    .find(|(cached_cl, cached_ts, _)| {
+                        if *cached_cl >= cypher_len && *cached_ts == table_size {
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .map(|(_, _, pad)| pad)
+                {
+                    | Some(pad) => {
                         crypt::decode(&cypher_text, &pad[..cypher_len as usize], &mut writer)
                     }
                     None => {
