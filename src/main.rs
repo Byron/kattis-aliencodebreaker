@@ -992,11 +992,10 @@ mod crypt {
             }
             let bi = big::BigUint::parse_bytes(bignum_str.as_bytes(), 10).unwrap();
             let mut pad = bi.to_radix_le(27);
-            pad.reverse();
             pad
         };
 
-        pad[..cypher_len as usize].to_owned()
+        pad.into_iter().rev().take(cypher_len as usize).collect()
     }
 
     fn ascii_to_code(c: char) -> u8 {

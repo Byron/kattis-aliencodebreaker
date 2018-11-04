@@ -9,7 +9,7 @@ https://open.kattis.com/problems/aliencodebreaking
  * **Submission 2 - time limit exceeded**
    * It looks like the 'constant' optimization is very powerful, as it sped up the 'to radix 27'
      conversion considerably. We seems to be loosing too much time during pad generation though.
- * **Submission 2 - time limit exceeded**
+ * **Submission 3 - time limit exceeded**
    * By now it runs in ~8.2s using a 6/12 intel CPU (MBPro 15" 2018), but it's still too slow
      on the 4/? core xeon they are using for judging. The slowest part now is the transformation
      into a base 27 vector, which is single threaded still.
