@@ -15,3 +15,5 @@ https://open.kattis.com/problems/aliencodebreaking
      into a base 27 vector, which is single threaded still.
  * **Submission 4 - runtime error**
    * non-zero exit code, probably some malformed input?
+ * **Submission 5 - runtime error**
+   * non-zero exit code, probably some malformed input? **It would have been nice...**
