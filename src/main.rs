@@ -20,12 +20,30 @@ mod parse {
         let mut ws = input.split_whitespace();
         match (ws.next(), ws.next()) {
             (Some(cls), Some(tss)) => Ok((
-                cls.parse().map_err(|_| {
-                    Error::InvalidDimensions("could not parse cypher length", input.to_owned())
-                })?,
-                tss.parse().map_err(|_| {
-                    Error::InvalidDimensions("coudl not parse table size", input.to_owned())
-                })?,
+                {
+                    let cl = cls.parse().map_err(|_| {
+                        Error::InvalidDimensions("could not parse cypher length", input.to_owned())
+                    })?;
+                    if cl > 10u32.pow(6) {
+                        return Err(Error::InvalidDimensions(
+                            "cipher text is too large",
+                            input.to_owned(),
+                        ));
+                    }
+                    cl
+                },
+                {
+                    let ts = tss.parse().map_err(|_| {
+                        Error::InvalidDimensions("coudl not parse table size", input.to_owned())
+                    })?;
+                    if ts > 10u32.pow(5) {
+                        return Err(Error::InvalidDimensions(
+                            "table size is too large",
+                            input.to_owned(),
+                        ));
+                    }
+                    ts
+                },
             )),
             _ => Err(Error::InvalidDimensions(
                 "need two whitespace separated tokens",
@@ -757,7 +775,7 @@ mod crypt {
             }
 
             #[inline]
-            pub fn new(digits: Vec<u32>) -> BigUint {
+            pub fn new(digits: Vec<BigDigit>) -> BigUint {
                 BigUint { data: digits }.normalized()
             }
 
@@ -939,9 +957,10 @@ mod crypt {
                             Some(column_offset as usize)
                         };
                         if let Some((next_iteration, _)) = CHECKPOINTS.get(index + 1) {
-                           if *next_iteration <= max_iteration && next_iteration % table_size != 0 {
-                               to_row_for_thread += 1;
-                           }
+                            if *next_iteration <= max_iteration && next_iteration % table_size != 0
+                            {
+                                to_row_for_thread += 1;
+                            }
                         }
                         let res_sender = res_sender.clone();
                         ::std::thread::spawn(move || {
