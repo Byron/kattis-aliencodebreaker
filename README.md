@@ -13,3 +13,5 @@ https://open.kattis.com/problems/aliencodebreaking
    * By now it runs in ~8.2s using a 6/12 intel CPU (MBPro 15" 2018), but it's still too slow
      on the 4/? core xeon they are using for judging. The slowest part now is the transformation
      into a base 27 vector, which is single threaded still.
+ * **Submission 4 - runtime error**
+   * non-zero exit code, probably some malformed input?

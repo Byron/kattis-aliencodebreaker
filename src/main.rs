@@ -24,9 +24,9 @@ mod parse {
                     let cl = cls.parse().map_err(|_| {
                         Error::InvalidDimensions("could not parse cypher length", input.to_owned())
                     })?;
-                    if cl > 10u32.pow(6) {
+                    if cl > 10u32.pow(6) || cl == 0 {
                         return Err(Error::InvalidDimensions(
-                            "cipher text is too large",
+                            "cipher text is too large or 0",
                             input.to_owned(),
                         ));
                     }
@@ -34,11 +34,11 @@ mod parse {
                 },
                 {
                     let ts = tss.parse().map_err(|_| {
-                        Error::InvalidDimensions("coudl not parse table size", input.to_owned())
+                        Error::InvalidDimensions("could not parse table size", input.to_owned())
                     })?;
-                    if ts > 10u32.pow(5) {
+                    if ts > 10u32.pow(5) || ts == 0 {
                         return Err(Error::InvalidDimensions(
-                            "table size is too large",
+                            "table size is too large or 0",
                             input.to_owned(),
                         ));
                     }
@@ -1038,7 +1038,7 @@ mod crypt {
         assert_eq!(
             encoded.as_bytes().len(),
             pad.len(),
-            "need pad len to be enocded bytes length, which must be ascii"
+            "need pad len to be encoded bytes length, which must be ascii"
         );
 
         for (c, p) in encoded.chars().map(ascii_to_code).zip(pad) {
@@ -1124,6 +1124,10 @@ fn main() -> Result<(), parse::Error> {
             _ => {
                 let (cypher_len, table_size) = parse::dimensions(&first_line)?;
                 let cypher_text = parse::validated_cypher_text(&second_line, cypher_len)?;
+                assert!(
+                    cypher_len as usize == cypher_text.len(),
+                    "cipher text was not as long or longer than advertised"
+                );
                 match pad_lut
                     .iter()
                     .find(|(cached_cl, cached_ts, _)| {
