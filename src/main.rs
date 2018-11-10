@@ -1056,30 +1056,26 @@ fn main() -> Result<(), parse::Error> {
 
     let mut first_line = String::new();
     let mut second_line = String::new();
-    loop {
-        first_line.clear();
-        second_line.clear();
-        stdin_lock.read_line(&mut first_line)?;
-        stdin_lock.read_line(&mut second_line)?;
+    stdin_lock.read_line(&mut first_line)?;
+    stdin_lock.read_line(&mut second_line)?;
 
-        match (first_line.len(), second_line.len()) {
-            (0, 0) => process::exit(0),
-            (_, 0) => {
-                eprintln!("input exhausted prematurely");
-                process::exit(2)
-            }
-            _ => {
-                let (cypher_len, table_size) = parse::dimensions(&first_line)?;
-                let cypher_text = parse::validated_cypher_text(&second_line, cypher_len)?;
-                assert!(
-                    cypher_len as usize == cypher_text.len(),
-                    "cipher text was not as long or longer than advertised"
-                );
+    match (first_line.len(), second_line.len()) {
+        (0, 0) | (_, 0) => {
+            eprintln!("input exhausted prematurely");
+            process::exit(2)
+        }
+        _ => {
+            let (cypher_len, table_size) = parse::dimensions(&first_line)?;
+            let cypher_text = parse::validated_cypher_text(&second_line, cypher_len)?;
+            assert!(
+                cypher_len as usize == cypher_text.len(),
+                "cipher text was not as long or longer than advertised"
+            );
 
-                let pad = crypt::make_pad(table_size, cypher_len);
-                crypt::decode(&cypher_text, &pad, &mut writer);
-                writer.flush().unwrap();
-            }
+            let pad = crypt::make_pad(table_size, cypher_len);
+            crypt::decode(&cypher_text, &pad, &mut writer);
+            writer.flush().unwrap();
         }
     }
+    Ok(())
 }
