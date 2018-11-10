@@ -69,6 +69,7 @@ mod crypt {
     type UInt = u32;
 
     const MOD: UInt = 1048576;
+    const MODUS: usize = MOD as usize;
     const BASE: u8 = 27;
 
     // All taken from num_bigint crate, modified to only the relevant code-paths
@@ -878,28 +879,76 @@ mod crypt {
         (x * 33 + 1) % MOD
     }
 
-    fn compute_columns(
-        mut v: UInt,
-        from_row: usize,
-        to_row: usize,
-        table_size: usize,
-        cols: &mut [UInt],
-    ) -> UInt {
-        for _ in from_row..to_row {
-            for x in 0..table_size {
-                let xv = unsafe { cols.get_unchecked_mut(x) };
-                *xv = (*xv + v) % MOD;
-                v = f(v);
-            }
+    fn precompute_f_for_slice(cols: &mut [UInt]) {
+        let mut c = 0;
+        for v in cols.iter_mut() {
+            *v = f(c);
+            c = *v;
         }
-        v
+    }
+
+    fn compute_sums_pwr_2<'a, 'b>(
+        table_size: u64,
+        f: &[UInt],
+        mut buffer1: Vec<UInt>,
+        mut buffer2: Vec<UInt>,
+        first_row: u64,
+        rows_log2: u64,
+    ) -> (Vec<UInt>, Vec<UInt>) {
+        for (idx, dst) in buffer2.iter_mut().enumerate() {
+            *dst =
+                *unsafe { f.get_unchecked((idx as u64 + table_size * first_row) as usize % MODUS) };
+        }
+        for c in 0..rows_log2 {
+            for (idx, dst) in buffer1.iter_mut().enumerate() {
+                *dst = *unsafe { buffer2.get_unchecked(idx) } + *unsafe {
+                    buffer2.get_unchecked((idx as u64 + table_size * (1 << c)) as usize % MODUS)
+                };
+            }
+            ::std::mem::swap(&mut buffer1, &mut buffer2);
+        }
+        (buffer2, buffer1)
     }
 
     pub fn make_pad(table_size: u32, cypher_len: u32) -> Vec<u8> {
         let cols = {
-            let table_size = table_size as usize;
-            let mut cols: Vec<UInt> = vec![0; table_size];
-            compute_columns(1, 0, table_size, table_size, &mut cols);
+            let mut f: Vec<UInt> = vec![0; MOD as usize];
+            precompute_f_for_slice(&mut f);
+
+            let mut totals: Vec<UInt> = vec![0; MOD as usize];
+            let mut buffer1: Vec<UInt> = vec![0; MOD as usize];
+            let mut buffer2: Vec<UInt> = vec![0; MOD as usize];
+
+            let mut n = table_size as u64;
+            let mut row = 0_u64;
+            let mut rows_log2 = 63_u64;
+
+            while n != 0 {
+                if n & 0x8000000000000000_u64 == 0x8000000000000000 {
+                    let (buf1, buf2) = compute_sums_pwr_2(
+                        table_size as u64,
+                        &mut f,
+                        buffer1,
+                        buffer2,
+                        row,
+                        rows_log2,
+                    );
+                    for (dst, src) in totals.iter_mut().zip(buf1.iter()) {
+                        *dst += *src;
+                    }
+                    buffer1 = buf1;
+                    buffer2 = buf2;
+
+                    row += 1 << rows_log2;
+                }
+                rows_log2 -= 1;
+                n <<= 1;
+            }
+
+            let mut cols: Vec<UInt> = vec![0; table_size as usize];
+            for (idx, c) in cols.iter_mut().enumerate() {
+                *c = unsafe { totals.get_unchecked(idx % MODUS) } % MOD;
+            }
             cols
         };
 
