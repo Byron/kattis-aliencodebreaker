@@ -17,3 +17,6 @@ https://open.kattis.com/problems/aliencodebreaking
    * non-zero exit code, probably some malformed input?
  * **Submission 5 - runtime error**
    * non-zero exit code, probably some malformed input? **It would have been nice...**
+ * **Submission X - time limit exeeded in worst case scenario**
+   * turns out we spend 0.09s in creating the colums, and 45s in transforming the result to base27.
+     There must be a better way.
