@@ -41,5 +41,5 @@ continuous-journey-tests:
 	watchexec $(MAKE) journey-tests
 
 worst-case-scenario: target/release/codebreaker
-	time $< < tests/fixtures/valid-massive.input
+	time $< < tests/fixtures/valid-massive.input > /dev/null
 
