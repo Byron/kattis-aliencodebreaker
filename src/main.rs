@@ -1011,8 +1011,9 @@ fn main() -> Result<(), parse::Error> {
         _ => {
             let (cypher_len, table_size) = parse::dimensions(&first_line)?;
             let cypher_text = parse::validated_cypher_text(&second_line, cypher_len)?;
-            assert!(
-                cypher_len as usize == cypher_text.len(),
+            assert_eq!(
+                cypher_len as usize,
+                cypher_text.len(),
                 "cipher text was not as long or longer than advertised"
             );
 
