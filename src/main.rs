@@ -877,31 +877,6 @@ mod crypt {
     fn f(x: UInt) -> UInt {
         (x * 33 + 1) % MOD
     }
-    const CHECKPOINTS: [(u64, u32); 20] = [
-        (0, 1),
-        (500_000_000, 374017),
-        (1000000000, 748033),
-        (1500000000, 73473),
-        (2000000000, 447489),
-        (2500000000, 821505),
-        (3000000000, 146945),
-        (3500000000, 520961),
-        (4000000000, 894977),
-        (4500000000, 220417),
-        (5000000000, 594433),
-        (5500000000, 968449),
-        (6000000000, 293889),
-        (6500000000, 667905),
-        (7000000000, 1041921),
-        (7500000000, 367361),
-        (8000000000, 741377),
-        (8500000000, 66817),
-        (9000000000, 440833),
-        (9500000000, 814849),
-    ];
-    const CHECKPOINT_INTERVAL: u64 = CHECKPOINTS[1].0;
-
-    use std::sync::mpsc;
 
     fn compute_columns(
         mut v: UInt,
@@ -922,86 +897,10 @@ mod crypt {
 
     pub fn make_pad(table_size: u32, cypher_len: u32) -> Vec<u8> {
         let cols = {
-            if (table_size as f64 * table_size as f64) / (CHECKPOINT_INTERVAL as f64) < 1.5 {
-                let table_size = table_size as usize;
-                let mut cols: Vec<UInt> = vec![0; table_size];
-                compute_columns(1, 0, table_size, table_size, &mut cols);
-                cols
-            } else {
-                // multi-threading doesn't help, as the total CPU time is counted!!!
-                let table_size = table_size as u64;
-                let max_iteration = table_size * table_size;
-                let mut from_row = 0_u64;
-                let max_rows_per_interval = CHECKPOINT_INTERVAL / table_size;
-
-                let res_receiver = {
-                    let (res_sender, res_receiver) = mpsc::channel();
-
-                    for (index, (iteration, checkpoint)) in CHECKPOINTS.iter().cloned().enumerate()
-                    {
-                        if iteration > max_iteration {
-                            break;
-                        }
-                        let to_row = {
-                            let to_row = from_row + max_rows_per_interval;
-                            if to_row * table_size > max_iteration {
-                                table_size
-                            } else {
-                                to_row
-                            }
-                        };
-                        let mut to_row_for_thread = to_row;
-                        let column_offset = iteration % table_size;
-                        let column_index = if column_offset == 0 {
-                            None
-                        } else {
-                            Some(column_offset as usize)
-                        };
-                        if let Some((next_iteration, _)) = CHECKPOINTS.get(index + 1) {
-                            if *next_iteration <= max_iteration && next_iteration % table_size != 0
-                            {
-                                to_row_for_thread += 1;
-                            }
-                        }
-                        let res_sender = res_sender.clone();
-                        ::std::thread::spawn(move || {
-                            let mut cols: Vec<UInt> = vec![0; table_size as usize];
-                            let v = match column_index {
-                                Some(column_offset) => {
-                                    let mut v = checkpoint;
-                                    for _ in column_offset..table_size as usize {
-                                        v = f(v);
-                                    }
-                                    from_row += 1;
-                                    v
-                                }
-                                None => checkpoint,
-                            };
-                            compute_columns(
-                                v,
-                                from_row as usize,
-                                to_row_for_thread as usize,
-                                table_size as usize,
-                                &mut cols,
-                            );
-                            res_sender.send(cols).unwrap();
-                        });
-                        from_row = to_row;
-                    }
-
-                    res_receiver
-                };
-
-                let mut cols: Vec<_> = res_receiver.into_iter().collect();
-                assert!(cols.len() > 1, "expecting more than one chunks of work");
-                let acc = cols.pop().unwrap();
-                cols.into_iter().fold(acc, |mut acc, cols| {
-                    for (acc, c) in acc.iter_mut().zip(cols.into_iter()) {
-                        *acc = (*acc + c) % MOD;
-                    }
-                    acc
-                })
-            }
+            let table_size = table_size as usize;
+            let mut cols: Vec<UInt> = vec![0; table_size];
+            compute_columns(1, 0, table_size, table_size, &mut cols);
+            cols
         };
 
         let pad = {
