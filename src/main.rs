@@ -1,4 +1,5 @@
-use std::{process, io::{stdin, stdout, BufRead, BufWriter, Write}};
+use std::{process, io::stdin};
+use std::io::{stdout, Write};
 
 mod parse {
     use std::io;
@@ -64,8 +65,6 @@ mod parse {
 }
 
 mod crypt {
-    use std::io;
-
     type UInt = u32;
 
     const MOD: UInt = 1048576;
@@ -982,30 +981,27 @@ mod crypt {
         }
     }
 
-    pub fn decode(encoded: &str, pad: &[u8], out: &mut io::Write) {
+    pub fn decode(encoded: &str, pad: &[u8]) -> Vec<u8> {
         assert_eq!(
             encoded.as_bytes().len(),
             pad.len(),
             "need pad len to be encoded bytes length, which must be ascii"
         );
 
+        let mut out = Vec::with_capacity(encoded.len());
         for (c, p) in encoded.chars().map(ascii_to_code).zip(pad) {
             let base27 = (c + p) % BASE;
-            out.write(&[base27_to_ascii(base27)]).unwrap();
+            out.push(base27_to_ascii(base27));
         }
-        out.write(&['\n' as u8]).unwrap();
+        out
     }
 }
 
 fn main() -> Result<(), parse::Error> {
-    let (stdin, stdout) = (stdin(), stdout());
-    let (mut stdin_lock, stdout_lock) = (stdin.lock(), stdout.lock());
-    let mut writer = BufWriter::new(stdout_lock);
-
     let mut first_line = String::new();
     let mut second_line = String::new();
-    stdin_lock.read_line(&mut first_line)?;
-    stdin_lock.read_line(&mut second_line)?;
+    stdin().read_line(&mut first_line)?;
+    stdin().read_line(&mut second_line)?;
 
     match (first_line.len(), second_line.len()) {
         (0, 0) | (_, 0) => {
@@ -1021,8 +1017,9 @@ fn main() -> Result<(), parse::Error> {
             );
 
             let pad = crypt::make_pad(table_size, cypher_len);
-            crypt::decode(&cypher_text, &pad, &mut writer);
-            writer.flush().unwrap();
+            stdout()
+                .write_all(&crypt::decode(&cypher_text, &pad))
+                .unwrap();
         }
     }
     Ok(())
