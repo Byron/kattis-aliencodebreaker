@@ -36,7 +36,7 @@ mod parse {
                     let ts = tss.parse().map_err(|_| {
                         Error::InvalidDimensions("could not parse table size", input.to_owned())
                     })?;
-                    if ts > 10u32.pow(5) || ts == 0 {
+                    if ts as f64 > 2.5f64 * 10u32.pow(5) as f64 || ts == 0 {
                         return Err(Error::InvalidDimensions(
                             "table size is too large or 0",
                             input.to_owned(),
